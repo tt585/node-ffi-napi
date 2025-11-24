@@ -7,8 +7,7 @@
  *
  * No attempt is made to emulate POSIX symbol table semantics.
  * The way Windows thinks about dynamic linking is fundamentally
- * different, and there's no way to emulate the useful aspects of
- * POSIX semantics.
+ * different, and there's no way to emulate the useful aspects of POSIX semantics.
  */
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -24,7 +23,6 @@
 /**
  * Win32 error code from last failure.
  */
-
 static DWORD lastError = 0;
 
 #ifdef __cplusplus
@@ -36,32 +34,21 @@ extern "C" {
  *
  * Caller must free() the returned string.
  */
+static WCHAR* UTF8toWCHAR(const char* inputString) {
+    if (!inputString) return nullptr;
 
-static
-WCHAR*
-UTF8toWCHAR(
-    const char* inputString /** UTF-8 string. */
-)
-{
-    int outputSize;
-    WCHAR* outputString;
+    int outputSize = MultiByteToWideChar(CP_UTF8, 0, inputString, -1, NULL, 0);
+    if (outputSize == 0) return nullptr;
 
-    outputSize = MultiByteToWideChar(CP_UTF8, 0, inputString, -1, NULL, 0);
-
-    if (outputSize == 0)
-        return NULL;
-
-    outputString = (WCHAR*) malloc(outputSize * sizeof(WCHAR));
-
-    if (outputString == NULL) {
+    WCHAR* outputString = (WCHAR*) malloc(outputSize * sizeof(WCHAR));
+    if (!outputString) {
         SetLastError(ERROR_OUTOFMEMORY);
-        return NULL;
+        return nullptr;
     }
 
-    if (MultiByteToWideChar(CP_UTF8, 0, inputString, -1, outputString, outputSize) != outputSize)
-    {
+    if (MultiByteToWideChar(CP_UTF8, 0, inputString, -1, outputString, outputSize) != outputSize) {
         free(outputString);
-        return NULL;
+        return nullptr;
     }
 
     return outputString;
@@ -70,41 +57,24 @@ UTF8toWCHAR(
 /**
  * Open DLL, returning a handle.
  */
-
-void*
-dlopen(
-    const char* file,   /** DLL filename (UTF-8). */
-    int mode            /** mode flags (ignored). */
-)
-{
-    WCHAR* unicodeFilename;
-    UINT errorMode;
-    void* handle;
-
+void* dlopen(const char* file, int mode) {
     UNREFERENCED_PARAMETER(mode);
 
-    if (file == NULL)
-        return (void*) GetModuleHandle(NULL);
+    if (!file) return (void*) GetModuleHandle(NULL);
 
-    unicodeFilename = UTF8toWCHAR(file);
-
-    if (unicodeFilename == NULL) {
+    WCHAR* unicodeFilename = UTF8toWCHAR(file);
+    if (!unicodeFilename) {
         lastError = GetLastError();
-        return NULL;
+        return nullptr;
     }
 
-    errorMode = GetErrorMode();
-
-    /* Have LoadLibrary return NULL on failure; prevent GUI error message. */
+    UINT errorMode = GetErrorMode();
     SetErrorMode(errorMode | SEM_FAILCRITICALERRORS);
 
-    handle = (void*) LoadLibraryW(unicodeFilename);
-
-    if (handle == NULL)
-        lastError = GetLastError();
+    void* handle = (void*) LoadLibraryW(unicodeFilename);
+    if (!handle) lastError = GetLastError();
 
     SetErrorMode(errorMode);
-
     free(unicodeFilename);
 
     return handle;
@@ -113,57 +83,34 @@ dlopen(
 /**
  * Close DLL.
  */
-
-int
-dlclose(
-    void* handle        /** Handle from dlopen(). */
-)
-{
+int dlclose(void* handle) {
     int rc = 0;
-
     if (handle != (void*) GetModuleHandle(NULL))
         rc = !FreeLibrary((HMODULE) handle);
-
-    if (rc)
-        lastError = GetLastError();
-
+    if (rc) lastError = GetLastError();
     return rc;
 }
 
 /**
  * Look up symbol exported by DLL.
  */
-
-void*
-dlsym(
-    void* handle,       /** Handle from dlopen(). */
-    const char* name    /** Name of exported symbol (ASCII). */
-)
-{
+void* dlsym(void* handle, const char* name) {
     void* address = (void*) GetProcAddress((HMODULE) handle, name);
-
-    if (address == NULL)
-        lastError = GetLastError();
-
+    if (!address) lastError = GetLastError();
     return address;
 }
 
 /**
  * Return message describing last error.
  */
-
-char*
-dlerror(void)
-{
+char* dlerror(void) {
     static char errorMessage[64];
-
     if (lastError != 0) {
         sprintf(errorMessage, "Win32 error %lu", lastError);
         lastError = 0;
         return errorMessage;
-    } else {
-        return NULL;
     }
+    return nullptr;
 }
 
 #ifdef __cplusplus
