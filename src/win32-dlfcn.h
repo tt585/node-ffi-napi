@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 
+// POSIX-style flags (ignored on Windows)
 #define RTLD_LAZY       0
 #define RTLD_NOW        0
 #define RTLD_GLOBAL     0
@@ -24,42 +25,39 @@ extern "C" {
 
 /**
  * Open DLL, returning a handle.
+ *
+ * @param file DLL filename (UTF-8)
+ * @param mode Mode flags (ignored)
+ * @return DLL handle or NULL on failure
  */
-
-void*
-dlopen(
-    const char *file,   /** DLL filename. */
-    int mode            /** mode flags (ignored). */
-);
+void* dlopen(const char* file, int mode);
 
 /**
  * Close DLL.
+ *
+ * @param handle Handle from dlopen()
+ * @return 0 on success, non-zero on failure
  */
-
-int
-dlclose(
-    void* handle        /** Handle from dlopen(). */
-);
+int dlclose(void* handle);
 
 /**
  * Look up symbol exported by DLL.
+ *
+ * @param handle Handle from dlopen()
+ * @param name Name of exported symbol (ASCII)
+ * @return Address of symbol or NULL on failure
  */
-
-void*
-dlsym(
-    void* handle,       /** Handle from dlopen(). */
-    const char* name    /** Name of exported symbol. */
-);
+void* dlsym(void* handle, const char* name);
 
 /**
  * Return message describing last error.
+ *
+ * @return Pointer to static string describing the last error
  */
-
-char*
-dlerror(void);
+char* dlerror(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif // _INCLUDE_DLFCN_H_
